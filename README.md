@@ -15,8 +15,12 @@ https://github.com/GreyEarl/qingping-air-monitor-mqtt
 1. Choose "Qingping MQTT Parser" from the list and follow the config flow steps
 1. Press button on Qingping device to publish data over wifi
 2. Sensors will be added automaticaly
-3. Sensor Status has extended attributes for debuging and inverstigating.   
+3. Sensor Status has extended attributes for debuging and inverstigating. Use ha /developer-tools/state to view what sensor sends. 
 
+
+## HA 
+After HA Rebot sensors will be unavailable until first fresh data from qingping device. 
+Currenty unavailable status not tracked.
 
 Parsing code converted to python from @niklasarnitz
 https://github.com/niklasarnitz/qingping-co2-temp-rh-sensor-mqtt-parser
