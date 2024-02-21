@@ -16,3 +16,7 @@ https://github.com/GreyEarl/qingping-air-monitor-mqtt
 1. Press button on Qingping device to publish data over wifi
 2. Sensors will be added automaticaly
 3. Sensor Status has extended attributes for debuging and inverstigating.   
+
+
+Parsing code converted to python from @niklasarnitz
+https://github.com/niklasarnitz/qingping-co2-temp-rh-sensor-mqtt-parser
