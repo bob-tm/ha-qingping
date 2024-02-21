@@ -1,0 +1,33 @@
+{
+    "config": {
+        "flow_title": "flow_title",
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+        },
+        "error": {
+            "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+            "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+            "unknown": "[%key:common::config_flow::error::unknown%]"
+        },
+        "step": {
+            "user": {
+                "title": "Connect to MQTT Server",
+
+                "data": {
+                    "host": "Host",
+                    "port": "Port",
+                    "password": "Password",
+                    "username": "Username"
+                },
+
+                "data_not_work": {
+                    "host": "[%key:common::config_flow::data::host%]",
+                    "port": "[%key:common::config_flow::data::port%]",
+                    "password": "[%key:common::config_flow::data::password%]",
+                    "username": "[%key:common::config_flow::data::username%]"
+                }
+            }
+
+        }
+   }
+}
