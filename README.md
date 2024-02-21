@@ -22,5 +22,5 @@ https://github.com/GreyEarl/qingping-air-monitor-mqtt
 After HA Rebot sensors will be unavailable until first fresh data from qingping device. 
 Currenty unavailable status not tracked.
 
-Parsing code converted to python from @niklasarnitz
-https://github.com/niklasarnitz/qingping-co2-temp-rh-sensor-mqtt-parser
+Credits to 
+https://github.com/niklasarnitz/qingping-co2-temp-rh-sensor-mqtt-parser for payload parsing code
