@@ -1,6 +1,6 @@
 # Qingping custom integration for Home Assistant
 
-Tested with Qingping CO2 Temp & RH Sensor via it's private cloud
+Tested with Qingping CO2 Temp & RH Sensor (CGP22C) via it's private cloud
 
 
 ## Enabling private cloud
