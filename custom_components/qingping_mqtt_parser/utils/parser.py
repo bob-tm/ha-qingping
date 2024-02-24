@@ -36,14 +36,14 @@ def parse_data(input_bytes: bytearray):
     exportable_data = {}
     exportable_data["_header"] = str(input_bytes)[2:5]
     for key, value in data.items():
-        if key == "0x3":
+        if key == "0x03":
             hex_string = " ".join(format(byte, '02x') for byte in value)
             exportable_data["historicalData"] = hex_string
-        elif key == "0x4":
+        elif key == "0x04":
             exportable_data["uploadDataInterval"] = value[0] * 60
-        elif key == "0x5":
+        elif key == "0x05":
             exportable_data["recordDataInterval"] = value[0]
-        elif key == "0x6":
+        elif key == "0x06":
             exportable_data["undocumentedValue"] = str(value)
         elif key == "0x19":
             exportable_data["temperatureUnit"] = "celsius" if value[0] == 0 else "fahrenheit"
