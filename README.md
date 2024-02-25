@@ -6,6 +6,12 @@ Tested with Qingping CO2 Temp & RH Sensor (CGP22C) via it's private cloud
 ## Enabling private cloud
 https://github.com/GreyEarl/qingping-air-monitor-mqtt
 
+## History Data
+
+Currently there is no much sence in history data (sesnor take measurment each 15 minutes, but uploads data once a hour)
+History data is fully parsed since version 0.2, but I can not find any Api in HA to put that data in ha entity history. Currently it's avaible in extended attributes for status sensor. 
+
+
 ## HACS Installation
 
 1. Go to http://homeassistant.local:8123/hacs/integrations
