@@ -129,7 +129,11 @@ class Qingping:
 
         self.info = False #General Info
         self.data = False #Sensors Data
-        self.cg1  = False
+        self.history_data   = {}
+        self.history_index  = 0
+        self.history_last_index  = 0
+        self.history_max    = 10
+
         self.sensors_created = False
 
     def update_from_mqtt(self, data) -> None:
@@ -157,7 +161,15 @@ class Qingping:
                 'unk_key_44': b'\x01
             """
         elif data['_header']=='CG1':
-            self.cg1 = data
+            self.history_data[self.history_index] = data
+            self.history_last_index = self.history_index
+
+
+            if self.history_index >= self.history_max:
+                self.history_index = 0
+            else:
+                self.history_index = self.history_index + 1
+
             """
                 {'_header': 'CG1',
                 'isGoingIntoLowPowerMode': True,
@@ -192,14 +204,17 @@ class Qingping:
             pass
 
     def is_supported(self, device_class: SensorDeviceClass) -> bool:
+        if 'sensor' not in self.data:
+            return False
+
         if device_class==SensorDeviceClass.BATTERY:
-            return 'battery' in self.data
+            return 'battery' in self.data['sensor']
         elif device_class==SensorDeviceClass.TEMPERATURE:
-            return 'temperature' in self.data
+            return 'temperature' in self.data['sensor']
         elif device_class==SensorDeviceClass.HUMIDITY:
-            return 'humidity' in self.data
+            return 'humidity' in self.data['sensor']
         elif device_class==SensorDeviceClass.CO2:
-            return 'co2_ppm' in self.data
+            return 'co2_ppm' in self.data['sensor']
         else:
             return False
 
@@ -252,20 +267,20 @@ class Qingping:
     @property
     def battery_level(self) -> int:
         if self.data:
-            return self.data['battery']
+            return self.data['sensor']['battery']
 
     @property
     def temperature(self) -> float:
         if self.data:
-            return self.data['temperature']
+            return self.data['sensor']['temperature']
 
     @property
     def co2_ppm(self) -> int:
         if self.data:
-            return self.data['co2_ppm']
+            return self.data['sensor']['co2_ppm']
 
 
     @property
     def humidity(self) -> float:
         if self.data:
-            return self.data['humidity']
+            return self.data['sensor']['humidity']
