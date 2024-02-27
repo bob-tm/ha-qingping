@@ -104,7 +104,10 @@ class SensorBase(Entity):
         elif self.device_class==SensorDeviceClass.CO2:
             return self._qp_device.co2_ppm
         elif self.device_class==DC_STATUS:
-            return 'data in attributes'
+            if self._qp_device.co2IsBeingCalibrated:
+                return 'co2IsBeingCalibrated'
+            else:
+                return 'data in attributes'
         else:
             return False
 

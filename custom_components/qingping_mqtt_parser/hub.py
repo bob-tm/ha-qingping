@@ -275,6 +275,11 @@ class Qingping:
             return self.data['sensor']['temperature']
 
     @property
+    def co2IsBeingCalibrated(self):
+        if self.data:
+            return self.data['co2IsBeingCalibrated']
+
+    @property
     def co2_ppm(self) -> int:
         if self.data:
             return self.data['sensor']['co2_ppm']
