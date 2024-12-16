@@ -92,6 +92,7 @@ class Hub:
             await client.subscribe(topic)
             async for message in client.messages:
                 r = decode_mqqt_message.decode(message.topic, message.payload)
+                print(f"MESSAGE {r}")
                 if r:
                     a = r['addr']
                     if a not in self.devices:
