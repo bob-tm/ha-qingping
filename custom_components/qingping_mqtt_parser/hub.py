@@ -137,7 +137,7 @@ class Qingping:
         self.sensors_created = False
 
     def update_from_mqtt(self, data) -> None:
-        if data['_header']=='CG9':
+        if data['_header'] in ['CG9', 'CGA']:
             self.info = data
             """
                '_header': 'CG9',
@@ -160,7 +160,7 @@ class Qingping:
                 'unk_key_19': b'\x00',
                 'unk_key_44': b'\x01
             """
-        elif data['_header']=='CG1':
+        elif data['_header'] in ['CG1', 'CGB']:
             self.history_data[self.history_index] = data
             self.history_last_index = self.history_index
 
