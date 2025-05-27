@@ -107,9 +107,9 @@ class Hub:
 
                     qp = self.devices[a]
                     qp.update_from_mqtt(r['data'])
-                    _LOGGER.debug(f"Updating device {qp.id} with data: {qp.data}")
+                    _LOGGER.debug(f"Updating device {qp.id} with data: {r['data']}")
                     await self.update_device(qp)
-                    _LOGGER.debug(f"Updated device {qp.id} with data: {qp.data}")
+                    _LOGGER.debug(f"Updated device {qp.id} with data: {r['data']}")
 
         return True
 
@@ -147,8 +147,8 @@ class Qingping:
         self.sensors_created = False
 
     def update_from_mqtt(self, data) -> None:
-        _LOGGER.debug(f"Processing : {self.info}")
-        if data['_header'] in ['CG9', 'CGA']:
+        _LOGGER.debug(f"Processing : {data}")
+        if data['_header']  == 'CG9':
             self.info = data
             """
                '_header': 'CG9',
@@ -188,7 +188,7 @@ class Qingping:
                 'unk_key_03': b'\x1c\xc6\xd5e\x84\x03\xa4\x11+5\x03d\xd3\x81)\xa8'
                         b'\x02d'}}
             """
-        elif data['_header']=='CG4':
+        elif data['_header'] in ['CG4', 'CGA']:
             self.data = data
 
             """
