@@ -291,8 +291,9 @@ class Qingping:
 
     @property
     def co2IsBeingCalibrated(self):
-        if self.data:
+        if self.data and 'co2IsBeingCalibrated' in self.data:
             return self.data['co2IsBeingCalibrated']
+        return False
 
     @property
     def co2_ppm(self) -> int:
