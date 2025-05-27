@@ -254,9 +254,9 @@ class Qingping:
 
     @property
     def hardwareVersion(self) -> str:
-        if self.data:
+        if self.data and 'hardwareVersion' in self.data:
             return self.data['hardwareVersion']
-
+        return "Unknown"
 
 
     def register_callback(self, callback: Callable[[], None]) -> None:
