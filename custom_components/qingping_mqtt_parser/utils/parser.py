@@ -83,9 +83,11 @@ def parse_v2_data(value, exportable_data):
     exportable_data["timestamp_human"] = datetime_human(ts)
     if device == 0x04: # QING_SENSOR_DATA_FORMAT_TEMP_RH_CO2
         temp, humidity, co2_ppm = struct.unpack("<hHH", value[5:11])
-        exportable_data["temperature"] = temp / 10.0
-        exportable_data["humidity"] = humidity / 10.0
-        exportable_data["co2_ppm"] = co2_ppm
+        exportable_data["sensor"] = { 
+            "temperature": temp / 10.0,
+            "humidity": humidity / 10.0,
+            "co2_ppm": co2_ppm
+        }
     else:
         exportable_data["unk_key_85"] = value.hex()
         #print(f"Unknown v2 data format: {device}, data: {value.hex()}")
