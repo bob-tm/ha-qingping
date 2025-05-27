@@ -1,3 +1,4 @@
+import struct
 from . import parsekeys
 from datetime import datetime
 
@@ -74,6 +75,21 @@ def parse_history_sensor_data(sensor_data):
         result[x] = parse_real_sensor_data(sensor_data[6 + x*6:])
 
     return result
+
+def parse_v2_data(value, exportable_data):
+    device = value[4]
+    ts = parse_sensor_timestamp(value[0:4])
+    exportable_data["timestamp"] = ts
+    exportable_data["timestamp_human"] = datetime_human(ts)
+    if device == 0x04: # QING_SENSOR_DATA_FORMAT_TEMP_RH_CO2
+        temp, humidity, co2_ppm = struct.unpack("<hHH", value[5:11])
+        exportable_data["temperature"] = temp / 10.0
+        exportable_data["humidity"] = humidity / 10.0
+        exportable_data["co2_ppm"] = co2_ppm
+    else:
+        exportable_data["unk_key_85"] = value.hex()
+        #print(f"Unknown v2 data format: {device}, data: {value.hex()}")
+    return exportable_data
 
 def parse_data(input_bytes: bytearray):
     data = parsekeys.parse_keys(input_bytes)
@@ -190,6 +206,10 @@ def parse_data(input_bytes: bytearray):
         elif key == "0x49":
             humidity_offset_percentage = data[key][0] | (data[key][1] << 8)
             exportable_data["humidityOffsetPercentage"] = humidity_offset_percentage / 10
+
+        # V2 data.
+        elif key == "0x85":
+            exportable_data = parse_v2_data(value, exportable_data)
 
         else:
             #exportable_data[f"unk_key_{int(key, 16):02x}"] = f"{value.hex()} : {str(value)}"
