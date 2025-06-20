@@ -144,7 +144,7 @@ class Qingping:
     def __init__(self, hub: Hub, addr: str) -> None:
         self.addr  = addr
         self.hub   = hub
-        self.name  = f"{addr}"  # Имя по умолчанию
+        self.name  = f"Qingping {qp.addr}"  # Имя по умолчанию
         self._callbacks = set()
 
         self.info = False #General Info
