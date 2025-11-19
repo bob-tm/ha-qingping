@@ -8,6 +8,8 @@ from __future__ import annotations
 # This dummy hub always returns 3 rollers.
 import asyncio
 import random
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -58,12 +60,14 @@ class Hub:
         )
 
     async def update_device(self, qp: Qingping):
-
+        _LOGGER.debug(f"Updating device {qp.id} redy={qp.ready} with data: {qp.data}")
         if qp.ready:
             if qp.sensors_created:
                 # parent device is already registered. Just Update HA
+                _LOGGER.debug(f"Device {qp.id} already created. Publishing updates.")
                 await qp.publish_updates()
             else:
+                _LOGGER.debug(f"Creating device {qp.id} in Home Assistant.")
                 device_registry = dr.async_get(self._hass)
 
                 device = device_registry.async_get_or_create(
@@ -78,11 +82,12 @@ class Hub:
                 )
 
                 await self._hass.config_entries.async_forward_entry_setups(self.config_entry, PLATFORMS)
-
+                _LOGGER.debug(f"Device {qp.id} created in Home Assistant with device ID: {device.id}")
                 qp.sensors_created = True
 
     async def task_on_mqtt_message(self):
         topic = "qingping/+/up"
+        _LOGGER.debug(f"Subscribing to MQTT topic: {topic}")
         async with aiomqtt.Client(
             hostname = self._host,
             port     = self._port,
@@ -91,15 +96,20 @@ class Hub:
 
             await client.subscribe(topic)
             async for message in client.messages:
+                _LOGGER.debug(f"Received MQTT message on topic: {message.topic}")
                 r = decode_mqqt_message.decode(message.topic, message.payload)
                 if r:
+                    _LOGGER.debug(f"Decoded MQTT message: {r}")
                     a = r['addr']
                     if a not in self.devices:
+                        _LOGGER.debug(f"Creating new Qingping device for address: {a}")
                         self.devices[a]=Qingping(self, r['addr'])
 
                     qp = self.devices[a]
                     qp.update_from_mqtt(r['data'])
+                    _LOGGER.debug(f"Updating device {qp.id} with data: {r['data']}")
                     await self.update_device(qp)
+                    _LOGGER.debug(f"Updated device {qp.id} with data: {r['data']}")
 
         return True
 
@@ -137,7 +147,8 @@ class Qingping:
         self.sensors_created = False
 
     def update_from_mqtt(self, data) -> None:
-        if data['_header']=='CG9':
+        _LOGGER.debug(f"Processing : {data}")
+        if data['_header']  == 'CG9':
             self.info = data
             """
                '_header': 'CG9',
@@ -160,7 +171,7 @@ class Qingping:
                 'unk_key_19': b'\x00',
                 'unk_key_44': b'\x01
             """
-        elif data['_header']=='CG1':
+        elif data['_header'] in ['CG1', 'CGB']:
             self.history_data[self.history_index] = data
             self.history_last_index = self.history_index
 
@@ -177,7 +188,7 @@ class Qingping:
                 'unk_key_03': b'\x1c\xc6\xd5e\x84\x03\xa4\x11+5\x03d\xd3\x81)\xa8'
                         b'\x02d'}}
             """
-        elif data['_header']=='CG4':
+        elif data['_header'] in ['CG4', 'CGA']:
             self.data = data
 
             """
@@ -200,11 +211,14 @@ class Qingping:
                 'wirelessModuleFirmwareVersion': '1.9.5'
             """
         else:
+            _LOGGER.debug(f"Unknown header: {data}")
             #print(data['_header'])
             pass
 
     def is_supported(self, device_class: SensorDeviceClass) -> bool:
+        _LOGGER.debug(f"Checking if device {self.addr} supports {device_class}")
         if 'sensor' not in self.data:
+            _LOGGER.debug(f"Device {self.addr} does not have sensor data {self.data}.")
             return False
 
         if device_class==SensorDeviceClass.BATTERY:
@@ -216,6 +230,7 @@ class Qingping:
         elif device_class==SensorDeviceClass.CO2:
             return 'co2_ppm' in self.data['sensor']
         else:
+            _LOGGER.debug(f"Device {self.addr} does not support {device_class}.")
             return False
 
     @property
@@ -239,9 +254,9 @@ class Qingping:
 
     @property
     def hardwareVersion(self) -> str:
-        if self.data:
+        if self.data and 'hardwareVersion' in self.data:
             return self.data['hardwareVersion']
-
+        return "Unknown"
 
 
     def register_callback(self, callback: Callable[[], None]) -> None:
@@ -276,8 +291,9 @@ class Qingping:
 
     @property
     def co2IsBeingCalibrated(self):
-        if self.data:
+        if self.data and 'co2IsBeingCalibrated' in self.data:
             return self.data['co2IsBeingCalibrated']
+        return False
 
     @property
     def co2_ppm(self) -> int:
