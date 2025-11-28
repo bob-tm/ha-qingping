@@ -1,63 +1,57 @@
-from homeassistant.components.sensor import (
-    SensorDeviceClass
-)
+"Sesnors for QP."
 
-from homeassistant.const import (
-    UnitOfTemperature
-)
-
-from homeassistant.helpers.entity import Entity
-from .hub import Qingping
-from .const import DOMAIN
 from typing import Any
-from homeassistant.util.unit_system import TEMPERATURE_UNITS
 
-DC_STATUS = SensorDeviceClass.ENUM
+from homeassistant.const import EntityCategory, UnitOfTemperature
+from homeassistant.helpers.entity import Entity
 
-# See cover.py for more details.
-# Note how both entities for each roller sensor (battry and illuminance) are added at
-# the same time to the same list. This way only a single async_add_devices call is
-# required.
+from .const import DOMAIN
+from .hub import Qingping
+
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add sensors for passed config_entry in HA."""
-    hub = hass.data[DOMAIN][config_entry.entry_id]
+    """Set up My integration from a config entry."""
+    hub = config_entry.runtime_data
 
-    new_devices = []
-    for mac, qp in hub.devices.items():
+    def _check_device() -> None:
+        new_devices = []
+        for qp in hub.devices.values():
+            if not qp.sensors_created:
+                for s in qp.sensors:
+                    if qp.sensors[s]['supported']:
+                        new_devices.append(SensorBase(qp, s))
+                qp.sensors_created = True
 
-        if not qp.sensors_created:
-            sdc = [SensorDeviceClass.BATTERY, SensorDeviceClass.TEMPERATURE, SensorDeviceClass.HUMIDITY, SensorDeviceClass.CO2]
+            if new_devices:
+                async_add_entities(new_devices)
 
-            for c in sdc:
-                if qp.is_supported(c):
-                    new_devices.append(SensorBase(qp, c))
+    _check_device()
 
-            # debug thing
-            new_devices.append(SensorBase(qp, DC_STATUS))
+    # Register callback to add entites after platfrom setup
+    config_entry.async_on_unload(hub.async_add_listener(_check_device))
 
-    if new_devices:
-        async_add_entities(new_devices)
-
-
-# This base class shows the common properties and methods for a sensor as used in this
-# example. See each sensor for further details about properties and methods that
-# have been overridden.
 class SensorBase(Entity):
+    'Descr.'
     should_poll  = False
 
-    def __init__(self, qp_device: Qingping, device_class):
+    def __init__(self, qp_device: Qingping, sensor_name):
         """Initialize the sensor."""
+        device_class            = qp_device.sensors[sensor_name].get('dc', None)
+        self.sensor_diagnostic  = qp_device.sensors[sensor_name].get('diagnostic', False)
         self._qp_device         = qp_device
+        self.sensor_name        = sensor_name
 
         self._attr_device_class = device_class
-        self._attr_unique_id    = f"{qp_device.id}_{device_class}"
-        self._attr_name         = f"{qp_device.name} {device_class}"
 
-        if device_class==DC_STATUS:
+        name_postfix = sensor_name if device_class is None else device_class
+
+        self._attr_unique_id    = f"{qp_device.id}_{name_postfix}"
+        self._attr_name         = f"{qp_device.name} {name_postfix}"
+
+        #print(f"Creating Sensor {self._attr_unique_id}")
+
+        if sensor_name=='status':
             self._attr_name = f"{qp_device.name} Status"
-
-        #if device_class==SensorDeviceClass.TEMPERATURE:
-        #    self._attr_unit_of_measurement
 
     # never called
     # @property
@@ -92,29 +86,26 @@ class SensorBase(Entity):
         # The opposite of async_added_to_hass. Remove any registered call backs here.
         self._qp_device.remove_callback(self.async_write_ha_state)
 
+    @property
+    def entity_category(self):
+        '''Category.'''
+        if self.sensor_diagnostic:
+            return EntityCategory.DIAGNOSTIC
+        else:
+            return None
 
     @property
     def state(self):
-        if self.device_class==SensorDeviceClass.BATTERY:
-            return self._qp_device.battery_level
-        elif self.device_class==SensorDeviceClass.TEMPERATURE:
-            return self._qp_device.temperature
-        elif self.device_class==SensorDeviceClass.HUMIDITY:
-            return self._qp_device.humidity
-        elif self.device_class==SensorDeviceClass.CO2:
-            return self._qp_device.co2_ppm
-        elif self.device_class==DC_STATUS:
-            if self._qp_device.co2IsBeingCalibrated:
-                return 'co2IsBeingCalibrated'
-            else:
-                return 'data in attributes'
-        else:
-            return False
+        'State.'
+        if self.sensor_name=='status':
+             return 'data in attributes'
 
+        return self._qp_device.getValue(self.sensor_name)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        if self.device_class!=DC_STATUS:
+        "Attributes added for debug."
+        if self.sensor_name != 'status':
             return None
 
         Attr = {
@@ -128,16 +119,3 @@ class SensorBase(Entity):
             Attr['history'][k]=v
 
         return Attr
-
-class BatterySensor(SensorBase):
-    device_class = SensorDeviceClass.BATTERY
-
-    def __init__(self, qp_device: Qingping):
-        super().__init__(qp_device)
-        self._attr_unique_id = f"{qp_device.id}_battery"
-        self._attr_name = f"{qp_device.name} Battery"
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._qp_device.battery_level

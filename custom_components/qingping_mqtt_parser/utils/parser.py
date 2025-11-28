@@ -1,6 +1,7 @@
 import struct
 from . import parsekeys
 from datetime import datetime
+# https://qingping.feishu.cn/docx/BlYOdJVRQobV0ox6SNZcV8V6nZT
 
 DataKey = [
     "historicalData",
@@ -30,7 +31,9 @@ DataKey = [
     "temperatureOffset",
     "temperatureOffsetPercentage",
     "humidityOffset",
-    "humidityOffsetPercentage"
+    "humidityOffsetPercentage",
+    "SNTPcalibrationTime",
+    'SignalStrength'
 ]
 
 def datetime_human(timestamp):
@@ -83,7 +86,7 @@ def parse_v2_data(value, exportable_data):
     exportable_data["timestamp_human"] = datetime_human(ts)
     if device == 0x04: # QING_SENSOR_DATA_FORMAT_TEMP_RH_CO2
         temp, humidity, co2_ppm = struct.unpack("<hHH", value[5:11])
-        exportable_data["sensor"] = { 
+        exportable_data["sensor"] = {
             "temperature": temp / 10.0,
             "humidity": humidity / 10.0,
             "co2_ppm": co2_ppm
@@ -96,7 +99,10 @@ def parse_v2_data(value, exportable_data):
 def parse_data(input_bytes: bytearray):
     data = parsekeys.parse_keys(input_bytes)
     exportable_data = {}
-    exportable_data["_header"] = str(input_bytes)[2:5]
+    exportable_data["header_old"] = str(input_bytes)[2:5]
+    exportable_data["magic"] = str(input_bytes)[2:4]
+    exportable_data["cmd"  ] = hex(ord(str(input_bytes)[4]))
+
     for key, value in data.items():
         # Historical Data
         if key == "0x03":
@@ -130,6 +136,10 @@ def parse_data(input_bytes: bytearray):
             for k, v in sensor_data.items():
                 exportable_data[k] = v
 
+        # Real-time networking event -> Contains Sensor Data
+        elif key == "0x15":
+            exportable_data["timestamp"] = parse_sensor_timestamp(value)
+
         # Disconnect the Device -> When this is true the device will enter into low-power mode
         elif key == "0x1d":
             exportable_data["isGoingIntoLowPowerMode"] = bool(data[key][0])
@@ -153,7 +163,8 @@ def parse_data(input_bytes: bytearray):
         # ProductID
         elif key == "0x38":
             if data[key]:
-                exportable_data["productId"] = ''.join(chr(b) for b in data[key])
+                hex_string = " ".join(format(byte, '02x') for byte in value)
+                exportable_data["productId"] = hex_string
 
         # Interval of CO2 Measurement
         elif key == "0x3b":
@@ -184,6 +195,9 @@ def parse_data(input_bytes: bytearray):
         elif key == "0x4a":
             exportable_data["co2IsBeingCalibrated"] = bool(data[key][0])
 
+        elif key == "0x44":
+            exportable_data["SNTPcalibrationTime"] = bool(data[key][0])
+
         # Offset CO2 by value
         elif key == "0x45":
             co2_offset = data[key][0] | (data[key][1] << 8)
@@ -208,6 +222,15 @@ def parse_data(input_bytes: bytearray):
         elif key == "0x49":
             humidity_offset_percentage = data[key][0] | (data[key][1] << 8)
             exportable_data["humidityOffsetPercentage"] = humidity_offset_percentage / 10
+
+        # Battery percentage
+        elif key == "0x64":
+            x8 = data[key][0]
+            exportable_data["battery"] = x8
+
+        # Signal Strength
+        elif key == "0x65":
+            exportable_data["SignalStrength"] = int.from_bytes(value, byteorder="big", signed=False)
 
         # V2 data.
         elif key == "0x85":

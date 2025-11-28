@@ -13,8 +13,7 @@ def decode(topic, payload):
             "data": data,
         }
 
-        _LOGGER.info(r)
-
+        #_LOGGER.info(r)
         return r
     except:
         return False
