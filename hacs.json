@@ -1,6 +1,6 @@
 {
     "name": "Qingping Local Cloud",
-    "hacs": "0.3",
+    "hacs": "0.4",
     "render_readme": true,
     "domains": [
         "sensor"
