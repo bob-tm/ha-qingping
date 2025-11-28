@@ -1,9 +1,9 @@
 {
     "name": "Qingping Local Cloud",
-    "hacs": "0.2",
+    "hacs": "0.3",
     "render_readme": true,
     "domains": [
         "sensor"
     ],
-    "homeassistant": "2021.9.0"
+    "homeassistant": "2025.3.0"
 }
