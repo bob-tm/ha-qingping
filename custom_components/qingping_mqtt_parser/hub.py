@@ -47,87 +47,125 @@ class Hub:
         self.devices = {}
         self.config_entry = config_entry
         self.online = True
+        self.unloading = False
 
         self._listeners: dict[int, tuple[CALLBACK_TYPE, object | None]] = {}
         self._last_listener_id: int = 0
 
-        hass.async_create_task(
+        self.looptask = hass.async_create_task(
             self.task_on_mqtt_message()
         )
 
+    async def task_stop(self):
+        _LOGGER.debug("Start task stopping ...")
+
+        self.unloading = True
+        await self.client.__aexit__(None, None, None)
+        await asyncio.sleep(5)
+        self.looptask.cancel()
+
+        try:
+            _LOGGER.debug("Waiting for task_stop")
+            await self.looptask
+            _LOGGER.debug("Stopped")
+        except asyncio.CancelledError:
+            _LOGGER.error("Task Stop Error ...")
+
     async def task_on_mqtt_message(self):
         "Parse device sensors."
-        topic = "qingping/+/up"
-        _LOGGER.debug(f"Subscribing to MQTT topic: {topic}")
-        try:
-            async with aiomqtt.Client(
+        interval = 15  # Seconds
+        topic    = "qingping/+/up"
+        client   = aiomqtt.Client(
                 hostname = self._host,
                 port     = self._port,
                 username = self._user,
-                password = self._pass) as client:
+                password = self._pass)
 
-                await client.subscribe(topic)
-                async for message in client.messages:
-                    await self.parse_message(message)
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error(f"Can not connect to MQTT Server: {str(e)}")
+        self.client = client
+
+        while not self.unloading:
+            #_LOGGER.debug("Start new Loop ...")
+            try:
+                async with client:
+                    _LOGGER.info(f"Connected to MQTT Server")
+
+                    await client.subscribe(topic)
+
+                    _LOGGER.debug(f"Subscribed to {topic}")
+
+                    async for message in client.messages:
+                        await self.parse_message(message)
+            except aiomqtt.MqttError:
+                if not self.unloading:
+                    _LOGGER.error(f"Connection lost; Reconnecting in {interval} seconds ...")
+                    await asyncio.sleep(interval)
+
+        _LOGGER.debug("Loop stopped")
 
         return True
 
     async def parse_message(self, message):
         "Parse MQTT Message."
-        _LOGGER.debug(f"Received MQTT message on topic: {message.topic}")
-        r = decode_mqqt_message.decode(message.topic, message.payload)
-        if r:
-            _LOGGER.debug(f"Decoded MQTT message: {r}")
-            a = r['addr']
-            if a not in self.devices:
-                # skip no data messages
-                if 'firmware_version' not in r['data']:
-                    return True
+        try:
+            _LOGGER.debug(f"Received MQTT message on topic: {message.topic}")
+            r = decode_mqqt_message.decode(message.topic, message.payload)
+            if r:
+                _LOGGER.debug(f"Decoded MQTT message: {r}")
+                a = r['addr']
+                if a not in self.devices:
+                    # skip no data messages
+                    if 'firmware_version' not in r['data']:
+                        return True
 
-                _LOGGER.debug(f"Creating new Qingping device for address: {a}")
-                qp =Qingping(self, r['addr'], r['data'])
-                self.devices[a] = qp
+                    _LOGGER.debug(f"Creating new Qingping device for address: {a}")
+                    qp =Qingping(self, r['addr'], r['data'])
+                    self.devices[a] = qp
 
-                _LOGGER.debug(f"Creating device {qp.id} in Home Assistant.")
-                device_registry = dr.async_get(self._hass)
+                    _LOGGER.debug(f"Creating device {qp.id} in Home Assistant.")
+                    device_registry = dr.async_get(self._hass)
 
-                device = device_registry.async_get_or_create(
-                    config_entry_id = self.config_entry.entry_id,
-                    connections     = {(qp.addr, DOMAIN)},
-                    identifiers     = {(qp.addr, DOMAIN)},
-                    manufacturer    = "Qingping",
-                    name            = qp.name,
-                    model           = qp.model,
-                    sw_version      = qp.firmware_version,
-                    hw_version      = qp.hardwareVersion,
-                )
+                    device = device_registry.async_get_or_create(
+                        config_entry_id = self.config_entry.entry_id,
+                        connections     = {(qp.addr, DOMAIN)},
+                        identifiers     = {(qp.addr, DOMAIN)},
+                        manufacturer    = "Qingping",
+                        name            = qp.name,
+                        model           = qp.model,
+                        sw_version      = qp.firmware_version,
+                        hw_version      = qp.hardwareVersion,
+                    )
 
-                # HA Do not support runtime reconfig. So Uplaod everything and start again
-                if len(self.devices)>1:
-                    _LOGGER.debug("async_update_listeners")
-                    self.async_update_listeners()
+                    # HA Do not support runtime reconfig. So Uplaod everything and start again
+                    if len(self.devices)>1:
+                        _LOGGER.debug("async_update_listeners")
+                        self.async_update_listeners()
+                    else:
+                        _LOGGER.debug("async_forward_entry_setups")
+                        await self._hass.config_entries.async_forward_entry_setups(self.config_entry, PLATFORMS)
                 else:
-                    _LOGGER.debug("async_forward_entry_setups")
-                    await self._hass.config_entries.async_forward_entry_setups(self.config_entry, PLATFORMS)
-            else:
-                qp = self.devices[a]
-                qp.update_from_mqtt(r['data'])
-                if qp.ready:
-                    await qp.publish_updates()
+                    qp = self.devices[a]
+                    qp.update_from_mqtt(r['data'])
+                    if qp.ready:
+                        await qp.publish_updates()
+
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.error(f"Parse_message Error: {str(e)}")
 
         return True
 
     @callback
     def async_add_listener(self, update_callback, context=None):
         "Callback to register callback to add new devices."
+        _LOGGER.debug('async_add_listener')
+
         self._last_listener_id += 1
         self._listeners[self._last_listener_id] = (update_callback, context)
 
     @callback
     def async_update_listeners(self) -> None:
         """Update all registered listeners."""
+        _LOGGER.debug('async_update_listeners')
+
         for update_callback, _ in list(self._listeners.values()):
             update_callback()
 

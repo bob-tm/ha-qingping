@@ -27,8 +27,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     _check_device()
 
-    # Register callback to add entites after platfrom setup
-    config_entry.async_on_unload(hub.async_add_listener(_check_device))
+    # Add Lisener only once
+    if len(hub.devices)==1:
+        hub.async_add_listener(_check_device)
 
 class SensorBase(Entity):
     'Descr.'

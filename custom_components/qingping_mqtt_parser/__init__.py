@@ -13,7 +13,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+
+    hub = entry.runtime_data
+    await hub.task_stop()
+
     if (unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS)):
         #entry.runtime_data.listener()
         pass
+
     return unload_ok
