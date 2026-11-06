@@ -30,3 +30,26 @@ Currenty unavailable status not tracked.
 
 Credits to 
 https://github.com/niklasarnitz/qingping-co2-temp-rh-sensor-mqtt-parser for payload parsing code
+
+## MQTT startup scheduling tests
+
+The long-running MQTT listener uses a Home Assistant background task so it does
+not block startup while waiting for messages or reconnecting. This is a
+startup-only change: entry unload is unchanged, including its existing manual
+context exit and five-second delay. It does not fix MQTT lifecycle or transport
+cleanup issues during connection setup or shutdown.
+
+These tests use real Home Assistant scheduling and a fake MQTT client. They do
+not connect to a broker or validate real transport cleanup or device payloads.
+
+```sh
+mkdir -p .tmp
+PYTHONDONTWRITEBYTECODE=1 uv run --python 3.14 \
+  --with homeassistant==2026.10.4 --with pytest --with pytest-asyncio \
+  --with aiomqtt python -m pytest -q tests/test_hub.py --basetemp .tmp/pytest \
+  -o asyncio_default_fixture_loop_scope=function
+```
+
+To test the minimum supported release, use `--python 3.13` and
+`--with homeassistant==2025.3.0 --with aiohttp==3.11.13` instead. The explicit
+aiohttp pin lets uv install that release's now-yanked required dependency.

@@ -52,8 +52,8 @@ class Hub:
         self._listeners: dict[int, tuple[CALLBACK_TYPE, object | None]] = {}
         self._last_listener_id: int = 0
 
-        self.looptask = hass.async_create_task(
-            self.task_on_mqtt_message()
+        self.looptask = hass.async_create_background_task(
+            self.task_on_mqtt_message(), "Qingping MQTT listener"
         )
 
     async def task_stop(self):
